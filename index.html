@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ระบบบริหารจัดการคำสั่งซื้อและคลังสินค้าหน้าร้าน</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Sarabun', sans-serif;
+      background: linear-gradient(135deg, #e8f5e9 0%, #fff3e0 50%, #e3f2fd 100%);
+      min-height: 100vh;
+      color: #212121;
+    }
+
+    /* ── AppBar ── */
+    .appbar {
+      background: linear-gradient(90deg, #2e7d32, #1565c0);
+      color: #fff;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .appbar-left { display: flex; align-items: center; gap: 12px; }
+    .appbar .material-icons.logo { font-size: 36px; }
+    .appbar h1 { font-size: 1.15rem; font-weight: 700; }
+    .appbar .subtitle { font-size: .78rem; opacity: .85; }
+
+    /* Badge */
+    .badge-wrap { position: relative; cursor: pointer; }
+    .badge-wrap .material-icons { font-size: 32px; }
+    .badge {
+      position: absolute; top: -6px; right: -10px;
+      background: #f44336; color: #fff;
+      font-size: .7rem; font-weight: 700;
+      min-width: 20px; height: 20px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 5px;
+    }
+    .badge.hide { display: none; }
+
+    /* ── Layout ── */
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px 16px 60px; }
+    .layout { display: grid; grid-template-columns: 1fr 400px; gap: 24px; align-items: start; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+    /* ── Section titles ── */
+    .section-title {
+      font-size: 1.1rem; font-weight: 700; color: #2e7d32;
+      display: flex; align-items: center; gap: 8px; margin-bottom: 16px;
+    }
+
+    /* ── Product Cards ── */
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      overflow: hidden;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,.14); }
+    .card.disabled { opacity: .5; pointer-events: none; }
+    .card-media {
+      width: 100%; height: 150px;
+      object-fit: cover;
+      background: #f5f5f5;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 3.5rem;
+    }
+    .card-content { padding: 14px 16px 8px; }
+    .card-content h3 { font-size: 1rem; font-weight: 700; margin-bottom: 2px; }
+    .card-content .price { color: #2e7d32; font-weight: 700; font-size: 1.1rem; }
+    .card-content .stock-label { font-size: .8rem; color: #757575; margin-top: 4px; }
+    .stock-low { color: #f44336 !important; font-weight: 600; }
+
+    /* LinearProgress */
+    .progress-bar { height: 6px; background: #e0e0e0; border-radius: 3px; margin-top: 6px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; transition: width .4s; }
+    .progress-green  { background: #4caf50; }
+    .progress-orange { background: #ff9800; }
+    .progress-red    { background: #f44336; }
+
+    /* Card Actions */
+    .card-actions {
+      padding: 8px 16px 14px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    /* Switch */
+    .switch-wrap { display: flex; align-items: center; gap: 6px; font-size: .82rem; color: #757575; }
+    .switch {
+      position: relative; width: 42px; height: 24px;
+      background: #bdbdbd; border-radius: 12px; cursor: pointer;
+      transition: background .2s;
+    }
+    .switch.on { background: #4caf50; }
+    .switch::after {
+      content: '';
+      position: absolute; top: 2px; left: 2px;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+      transition: transform .2s;
+    }
+    .switch.on::after { transform: translateX(18px); }
+
+    /* IconButton */
+    .icon-btn {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; transition: all .15s;
+    }
+    .icon-btn:hover { transform: scale(1.1); }
+    .icon-btn.add { background: #e8f5e9; color: #2e7d32; }
+    .icon-btn.add:hover { background: #c8e6c9; }
+
+    /* ── Cart / Right Panel ── */
+    .panel {
+      background: #fff; border-radius: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      padding: 20px;
+      position: sticky; top: 80px;
+    }
+    .panel-title {
+      font-size: 1.05rem; font-weight: 700; color: #1565c0;
+      display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+    }
+
+    /* Table */
+    .table-wrap { max-height: 280px; overflow-y: auto; margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+    thead { background: #e3f2fd; position: sticky; top: 0; }
+    th { padding: 10px 8px; text-align: left; font-weight: 600; color: #1565c0; border-bottom: 2px solid #bbdefb; }
+    td { padding: 8px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    .qty-cell { display: flex; align-items: center; gap: 4px; }
+    .qty-cell .icon-btn { width: 28px; height: 28px; font-size: .9rem; }
+    .qty-cell .icon-btn.minus { background: #ffebee; color: #c62828; }
+    .qty-cell .icon-btn.minus:hover { background: #ffcdd2; }
+    .qty-cell span { min-width: 20px; text-align: center; font-weight: 600; }
+    .remove-btn { background: none; border: none; color: #f44336; cursor: pointer; font-size: 1.1rem; }
+    .remove-btn:hover { color: #b71c1c; }
+    .empty-cart { text-align: center; padding: 30px; color: #bdbdbd; }
+    .empty-cart .material-icons { font-size: 48px; display: block; margin-bottom: 8px; }
+
+    /* Summary */
+    .summary { border-top: 2px solid #e0e0e0; padding-top: 14px; }
+    .summary-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: .9rem; }
+    .summary-row.total { font-size: 1.1rem; font-weight: 700; color: #2e7d32; border-top: 2px solid #2e7d32; padding-top: 10px; margin-top: 6px; }
+    .summary-row.discount { color: #f44336; }
+
+    /* Discount input */
+    .discount-row { display: flex; gap: 8px; margin: 12px 0; }
+    .discount-row input {
+      flex: 1; padding: 10px 12px; border: 1.5px solid #bdbdbd; border-radius: 8px;
+      font-family: 'Sarabun', sans-serif; font-size: .9rem; outline: none;
+    }
+    .discount-row input:focus { border-color: #1565c0; box-shadow: 0 0 0 3px rgba(21,101,192,.12); }
+    .discount-row button {
+      padding: 10px 16px; border: none; border-radius: 8px;
+      background: #1565c0; color: #fff; font-family: 'Sarabun', sans-serif;
+      font-weight: 600; cursor: pointer; white-space: nowrap;
+    }
+    .discount-row button:hover { background: #0d47a1; }
+    .discount-msg { font-size: .8rem; margin-bottom: 8px; min-height: 18px; }
+    .discount-msg.ok { color: #2e7d32; }
+    .discount-msg.err { color: #f44336; }
+
+    /* Payment */
+    .payment-section { margin-top: 14px; border-top: 2px solid #e0e0e0; padding-top: 14px; }
+    .payment-section label { font-size: .88rem; font-weight: 600; color: #555; display: block; margin-bottom: 6px; }
+    .payment-section input {
+      width: 100%; padding: 12px 14px; border: 1.5px solid #bdbdbd; border-radius: 8px;
+      font-family: 'Sarabun', sans-serif; font-size: 1.1rem; outline: none; font-weight: 700;
+    }
+    .payment-section input:focus { border-color: #2e7d32; box-shadow: 0 0 0 3px rgba(46,125,50,.12); }
+    .change-display {
+      text-align: center; margin-top: 10px; padding: 12px;
+      border-radius: 8px; font-weight: 700; font-size: 1.2rem;
+    }
+    .change-ok   { background: #e8f5e9; color: #2e7d32; }
+    .change-warn { background: #ffebee; color: #c62828; }
+
+    /* Buttons */
+    .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+    .btn {
+      flex: 1; padding: 12px; border: none; border-radius: 8px;
+      font-size: .95rem; font-weight: 700; font-family: 'Sarabun', sans-serif;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: all .2s;
+    }
+    .btn-pay { background: linear-gradient(90deg, #2e7d32, #1565c0); color: #fff; box-shadow: 0 3px 10px rgba(46,125,50,.3); }
+    .btn-pay:hover { box-shadow: 0 5px 16px rgba(46,125,50,.4); }
+    .btn-pay:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-clear { background: #fff; color: #f44336; border: 2px solid #f44336; }
+    .btn-clear:hover { background: #ffebee; }
+
+    /* ── Snackbar ── */
+    .snackbar {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px);
+      background: #323232; color: #fff; padding: 12px 24px; border-radius: 8px;
+      font-size: .9rem; box-shadow: 0 4px 16px rgba(0,0,0,.3);
+      z-index: 2000; transition: transform .3s ease; white-space: nowrap;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .snackbar.show { transform: translateX(-50%) translateY(0); }
+    .snackbar .material-icons { font-size: 20px; color: #69f0ae; }
+
+    /* ── Receipt Dialog ── */
+    .overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      z-index: 1000; justify-content: center; align-items: center; padding: 16px;
+    }
+    .overlay.open { display: flex; }
+    .dialog {
+      background: #fff; border-radius: 16px; width: 100%; max-width: 480px;
+      max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 12px 48px rgba(0,0,0,.25); animation: slideUp .3s ease;
+    }
+    @keyframes slideUp { from { opacity:0; transform:translateY(30px); } to { opacity:1; transform:translateY(0); } }
+    .dialog-title {
+      background: linear-gradient(90deg, #2e7d32, #1565c0); color: #fff;
+      padding: 18px 24px; font-size: 1.1rem; font-weight: 700;
+      display: flex; align-items: center; gap: 10px; border-radius: 16px 16px 0 0;
+    }
+    .dialog-content { padding: 20px 24px; }
+    .dialog-actions { padding: 12px 24px 18px; display: flex; justify-content: flex-end; gap: 10px; }
+
+    .receipt { font-family: 'Courier New', monospace; font-size: .85rem; }
+    .receipt hr { border: none; border-top: 1px dashed #999; margin: 10px 0; }
+    .receipt .r-row { display: flex; justify-content: space-between; padding: 2px 0; }
+    .receipt .r-center { text-align: center; }
+    .receipt .r-total { font-weight: 700; font-size: 1rem; }
+
+    .footer { text-align: center; margin-top: 24px; font-size: .82rem; opacity: .5; }
+  </style>
+</head>
+<body>
+
+  <!-- AppBar -->
+  <div class="appbar">
+    <div class="appbar-left">
+      <span class="material-icons logo">store</span>
+      <div>
+        <h1>ระบบบริหารจัดการคำสั่งซื้อและคลังสินค้าหน้าร้าน</h1>
+        <div class="subtitle">Point of Sale and Inventory Management System</div>
+      </div>
+    </div>
+    <div class="badge-wrap" onclick="scrollToCart()">
+      <span class="material-icons">shopping_cart</span>
+      <span class="badge hide" id="cartBadge">0</span>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="layout">
+
+      <!-- LEFT: Products -->
+      <div>
+        <div class="section-title">
+          <span class="material-icons">inventory_2</span> สินค้าในร้าน
+        </div>
+        <div class="product-grid" id="productGrid"></div>
+      </div>
+
+      <!-- RIGHT: Cart & Checkout -->
+      <div class="panel" id="cartPanel">
+        <div class="panel-title">
+          <span class="material-icons">receipt_long</span> ตะกร้าสินค้า
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>สินค้า</th><th>ราคา</th><th>จำนวน</th><th>รวม</th><th></th></tr>
+            </thead>
+            <tbody id="cartBody">
+              <tr><td colspan="5" class="empty-cart"><span class="material-icons">remove_shopping_cart</span>ยังไม่มีสินค้าในตะกร้า</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Discount -->
+        <div class="discount-row">
+          <input type="text" id="discountCode" placeholder="ใส่โค้ดส่วนลด" />
+          <button onclick="applyDiscount()">ใช้โค้ด</button>
+        </div>
+        <div class="discount-msg" id="discountMsg"></div>
+
+        <!-- Summary -->
+        <div class="summary" id="summary">
+          <div class="summary-row"><span>ราคาสินค้ารวม</span><span id="subtotal">฿0.00</span></div>
+          <div class="summary-row discount" id="discountRow" style="display:none"><span>ส่วนลด</span><span id="discountAmt">-฿0.00</span></div>
+          <div class="summary-row"><span>VAT 7%</span><span id="vatAmt">฿0.00</span></div>
+          <div class="summary-row total"><span>ยอดสุทธิ</span><span id="grandTotal">฿0.00</span></div>
+        </div>
+
+        <!-- Payment -->
+        <div class="payment-section">
+          <label>💵 จำนวนเงินที่รับ (บาท)</label>
+          <input type="number" id="cashInput" placeholder="0.00" oninput="calcChange()" />
+          <div class="change-display" id="changeDisplay" style="display:none"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="btn-row">
+          <button class="btn btn-pay" id="payBtn" onclick="checkout()" disabled>
+            <span class="material-icons">point_of_sale</span> ชำระเงิน
+          </button>
+          <button class="btn btn-clear" onclick="clearCart()">
+            <span class="material-icons">delete_sweep</span> ล้าง
+          </button>
+        </div>
+      </div>
+    </div>
+    <p class="footer">© 2026 Point of Sale and Inventory Management System — งานที่ 2</p>
+  </div>
+
+  <!-- Snackbar -->
+  <div class="snackbar" id="snackbar">
+    <span class="material-icons">check_circle</span>
+    <span id="snackMsg">เพิ่มสินค้าลงตะกร้าแล้ว</span>
+  </div>
+
+  <!-- Receipt Dialog -->
+  <div class="overlay" id="overlay" onclick="if(event.target===this)closeReceipt()">
+    <div class="dialog">
+      <div class="dialog-title">
+        <span class="material-icons">receipt</span> ใบเสร็จรับเงิน
+      </div>
+      <div class="dialog-content" id="receiptContent"></div>
+      <div class="dialog-actions">
+        <button class="btn btn-clear" style="flex:none;padding:10px 20px" onclick="closeReceipt()">ปิด</button>
+        <button class="btn btn-pay" style="flex:none;padding:10px 20px" onclick="closeReceipt();clearCart();">เริ่มรายการใหม่</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ═══════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════
+const products = [
+  { id: 1, name: 'กาแฟลาเต้',       price: 65,  stock: 20, maxStock: 20, emoji: '☕', active: true },
+  { id: 2, name: 'ชาเขียวมัทฉะ',     price: 55,  stock: 15, maxStock: 15, emoji: '🍵', active: true },
+  { id: 3, name: 'น้ำส้มคั้นสด',      price: 45,  stock: 8,  maxStock: 20, emoji: '🍊', active: true },
+  { id: 4, name: 'สมูทตี้กล้วย',      price: 75,  stock: 4,  maxStock: 15, emoji: '🍌', active: true },
+  { id: 5, name: 'โกโก้ร้อน',         price: 60,  stock: 12, maxStock: 12, emoji: '🍫', active: true },
+  { id: 6, name: 'ชานมไข่มุก',       price: 55,  stock: 3,  maxStock: 20, emoji: '🧋', active: true },
+  { id: 7, name: 'เค้กช็อคโกแลต',    price: 85,  stock: 6,  maxStock: 10, emoji: '🍰', active: true },
+  { id: 8, name: 'ครัวซองต์',         price: 70,  stock: 2,  maxStock: 10, emoji: '🥐', active: true },
+  { id: 9, name: 'แซนด์วิช',         price: 90,  stock: 10, maxStock: 10, emoji: '🥪', active: true },
+  { id: 10,name: 'คุกกี้',            price: 35,  stock: 0,  maxStock: 15, emoji: '🍪', active: false },
+  { id: 11,name: 'วาฟเฟิล',          price: 80,  stock: 7,  maxStock: 10, emoji: '🧇', active: true },
+  { id: 12,name: 'น้ำแร่',           price: 20,  stock: 25, maxStock: 30, emoji: '💧', active: true },
+];
+
+const discountCodes = {
+  'SAVE10':  { type: 'percent', value: 10, label: '10%' },
+  'SAVE20':  { type: 'percent', value: 20, label: '20%' },
+  'MINUS50': { type: 'fixed',   value: 50, label: '฿50' },
+};
+
+let cart = [];
+let appliedDiscount = null;
+let snackTimer = null;
+
+// ═══════════════════════════════════════
+// RENDER PRODUCTS
+// ═══════════════════════════════════════
+function renderProducts() {
+  const grid = document.getElementById('productGrid');
+  grid.innerHTML = '';
+  products.forEach(p => {
+    const pct = (p.stock / p.maxStock) * 100;
+    const lowStock = p.stock > 0 && p.stock <= 5;
+    const noStock = p.stock === 0;
+    const barColor = pct > 40 ? 'progress-green' : pct > 15 ? 'progress-orange' : 'progress-red';
+
+    const card = document.createElement('div');
+    card.className = 'card' + (!p.active || noStock ? ' disabled' : '');
+    card.innerHTML = `
+      <div class="card-media">${p.emoji}</div>
+      <div class="card-content">
+        <h3>${p.name}</h3>
+        <div class="price">฿${p.price.toFixed(2)}</div>
+        <div class="stock-label ${lowStock ? 'stock-low' : ''}">
+          ${noStock ? '❌ สินค้าหมด' : (lowStock ? '⚠️ เหลือน้อย: ' : 'คงเหลือ: ') + p.stock + ' ชิ้น'}
+        </div>
+        <div class="progress-bar"><div class="progress-fill ${barColor}" style="width:${pct}%"></div></div>
+      </div>
+      <div class="card-actions">
+        <div class="switch-wrap">
+          <div class="switch ${p.active ? 'on' : ''}" onclick="event.stopPropagation();toggleProduct(${p.id})"></div>
+          <span>${p.active ? 'เปิดขาย' : 'ปิดขาย'}</span>
+        </div>
+        <button class="icon-btn add" onclick="addToCart(${p.id})" ${!p.active || noStock ? 'disabled' : ''} title="เพิ่มลงตะกร้า">
+          <span class="material-icons">add_shopping_cart</span>
+        </button>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+// ═══════════════════════════════════════
+// TOGGLE PRODUCT STATUS
+// ═══════════════════════════════════════
+function toggleProduct(id) {
+  const p = products.find(x => x.id === id);
+  p.active = !p.active;
+  renderProducts();
+  showSnack(p.active ? `เปิดขาย "${p.name}" แล้ว` : `ปิดขาย "${p.name}" แล้ว`);
+}
+
+// ═══════════════════════════════════════
+// CART OPERATIONS
+// ═══════════════════════════════════════
+function addToCart(id) {
+  const p = products.find(x => x.id === id);
+  if (!p.active || p.stock <= 0) return;
+
+  const existing = cart.find(c => c.id === id);
+  if (existing) {
+    if (existing.qty >= p.stock) {
+      showSnack('⚠️ สต็อกไม่เพียงพอ');
+      return;
+    }
+    existing.qty++;
+  } else {
+    cart.push({ id: p.id, name: p.name, price: p.price, qty: 1, emoji: p.emoji });
+  }
+  showSnack(`เพิ่ม "${p.name}" ลงตะกร้าแล้ว`);
+  renderCart();
+}
+
+function changeQty(id, delta) {
+  const item = cart.find(c => c.id === id);
+  if (!item) return;
+  const p = products.find(x => x.id === id);
+  const newQty = item.qty + delta;
+  if (newQty < 1) { removeItem(id); return; }
+  if (newQty > p.stock) { showSnack('⚠️ สต็อกไม่เพียงพอ'); return; }
+  item.qty = newQty;
+  renderCart();
+}
+
+function removeItem(id) {
+  cart = cart.filter(c => c.id !== id);
+  renderCart();
+}
+
+function clearCart() {
+  cart = [];
+  appliedDiscount = null;
+  document.getElementById('discountCode').value = '';
+  document.getElementById('discountMsg').textContent = '';
+  document.getElementById('discountMsg').className = 'discount-msg';
+  document.getElementById('cashInput').value = '';
+  document.getElementById('changeDisplay').style.display = 'none';
+  renderCart();
+}
+
+// ═══════════════════════════════════════
+// RENDER CART & SUMMARY
+// ═══════════════════════════════════════
+function renderCart() {
+  const tbody = document.getElementById('cartBody');
+  const badge = document.getElementById('cartBadge');
+  const totalItems = cart.reduce((s, c) => s + c.qty, 0);
+
+  // Badge
+  if (totalItems > 0) { badge.textContent = totalItems; badge.classList.remove('hide'); }
+  else { badge.classList.add('hide'); }
+
+  // Table
+  if (cart.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-cart"><span class="material-icons">remove_shopping_cart</span>ยังไม่มีสินค้าในตะกร้า</td></tr>';
+  } else {
+    tbody.innerHTML = cart.map(c => `
+      <tr>
+        <td>${c.emoji} ${c.name}</td>
+        <td>฿${c.price.toFixed(2)}</td>
+        <td>
+          <div class="qty-cell">
+            <button class="icon-btn minus" onclick="changeQty(${c.id},-1)">−</button>
+            <span>${c.qty}</span>
+            <button class="icon-btn add" onclick="changeQty(${c.id},+1)">+</button>
+          </div>
+        </td>
+        <td style="font-weight:600">฿${(c.price * c.qty).toFixed(2)}</td>
+        <td><button class="remove-btn" onclick="removeItem(${c.id})" title="ลบ"><span class="material-icons" style="font-size:18px">close</span></button></td>
+      </tr>
+    `).join('');
+  }
+
+  // Summary
+  const subtotal = cart.reduce((s, c) => s + c.price * c.qty, 0);
+  let discountAmt = 0;
+  if (appliedDiscount) {
+    discountAmt = appliedDiscount.type === 'percent' ? subtotal * (appliedDiscount.value / 100) : appliedDiscount.value;
+    if (discountAmt > subtotal) discountAmt = subtotal;
+  }
+  const afterDiscount = subtotal - discountAmt;
+  const vat = afterDiscount * 0.07;
+  const grand = afterDiscount + vat;
+
+  document.getElementById('subtotal').textContent = '฿' + subtotal.toFixed(2);
+  document.getElementById('discountRow').style.display = discountAmt > 0 ? 'flex' : 'none';
+  document.getElementById('discountAmt').textContent = '-฿' + discountAmt.toFixed(2);
+  document.getElementById('vatAmt').textContent = '฿' + vat.toFixed(2);
+  document.getElementById('grandTotal').textContent = '฿' + grand.toFixed(2);
+
+  calcChange();
+}
+
+// ═══════════════════════════════════════
+// DISCOUNT
+// ═══════════════════════════════════════
+function applyDiscount() {
+  const code = document.getElementById('discountCode').value.trim().toUpperCase();
+  const msg = document.getElementById('discountMsg');
+  if (!code) { msg.textContent = ''; return; }
+
+  if (discountCodes[code]) {
+    appliedDiscount = discountCodes[code];
+    msg.textContent = '✅ ใช้โค้ดส่วนลด ' + appliedDiscount.label + ' สำเร็จ!';
+    msg.className = 'discount-msg ok';
+    showSnack('ใช้โค้ดส่วนลดสำเร็จ!');
+  } else {
+    appliedDiscount = null;
+    msg.textContent = '❌ โค้ดส่วนลดไม่ถูกต้อง';
+    msg.className = 'discount-msg err';
+  }
+  renderCart();
+}
+
+// ═══════════════════════════════════════
+// CHANGE CALCULATION
+// ═══════════════════════════════════════
+function calcChange() {
+  const grand = getGrandTotal();
+  const cash = parseFloat(document.getElementById('cashInput').value) || 0;
+  const el = document.getElementById('changeDisplay');
+  const payBtn = document.getElementById('payBtn');
+
+  if (cash <= 0 || cart.length === 0) {
+    el.style.display = 'none';
+    payBtn.disabled = true;
+    return;
+  }
+
+  const change = cash - grand;
+  if (change >= 0) {
+    el.textContent = '💰 เงินทอน: ฿' + change.toFixed(2);
+    el.className = 'change-display change-ok';
+    payBtn.disabled = false;
+  } else {
+    el.textContent = '⚠️ เงินไม่พอ ขาดอีก ฿' + Math.abs(change).toFixed(2);
+    el.className = 'change-display change-warn';
+    payBtn.disabled = true;
+  }
+  el.style.display = 'block';
+}
+
+function getGrandTotal() {
+  const subtotal = cart.reduce((s, c) => s + c.price * c.qty, 0);
+  let disc = 0;
+  if (appliedDiscount) {
+    disc = appliedDiscount.type === 'percent' ? subtotal * (appliedDiscount.value / 100) : appliedDiscount.value;
+    if (disc > subtotal) disc = subtotal;
+  }
+  const after = subtotal - disc;
+  return after + after * 0.07;
+}
+
+// ═══════════════════════════════════════
+// CHECKOUT / RECEIPT
+// ═══════════════════════════════════════
+function checkout() {
+  const grand = getGrandTotal();
+  const cash = parseFloat(document.getElementById('cashInput').value) || 0;
+  if (cash < grand || cart.length === 0) return;
+
+  const change = cash - grand;
+  const subtotal = cart.reduce((s, c) => s + c.price * c.qty, 0);
+  let disc = 0;
+  if (appliedDiscount) {
+    disc = appliedDiscount.type === 'percent' ? subtotal * (appliedDiscount.value / 100) : appliedDiscount.value;
+    if (disc > subtotal) disc = subtotal;
+  }
+  const after = subtotal - disc;
+  const vat = after * 0.07;
+  const now = new Date();
+
+  // Deduct stock
+  cart.forEach(c => {
+    const p = products.find(x => x.id === c.id);
+    p.stock -= c.qty;
+    if (p.stock <= 0) { p.stock = 0; p.active = false; }
+  });
+
+  // Build receipt
+  let r = '<div class="receipt">';
+  r += '<p class="r-center" style="font-size:1.1rem;font-weight:700">🏪 ร้านค้าหน้าร้าน</p>';
+  r += '<p class="r-center" style="font-size:.8rem;color:#757575">POS Receipt</p>';
+  r += '<p class="r-center" style="font-size:.78rem;color:#999">' + now.toLocaleString('th-TH') + '</p>';
+  r += '<hr>';
+
+  cart.forEach(c => {
+    r += '<div class="r-row"><span>' + c.emoji + ' ' + c.name + ' x' + c.qty + '</span><span>฿' + (c.price * c.qty).toFixed(2) + '</span></div>';
+  });
+
+  r += '<hr>';
+  r += '<div class="r-row"><span>ราคารวม</span><span>฿' + subtotal.toFixed(2) + '</span></div>';
+  if (disc > 0) {
+    r += '<div class="r-row" style="color:#f44336"><span>ส่วนลด (' + (appliedDiscount.label) + ')</span><span>-฿' + disc.toFixed(2) + '</span></div>';
+  }
+  r += '<div class="r-row"><span>VAT 7%</span><span>฿' + vat.toFixed(2) + '</span></div>';
+  r += '<hr>';
+  r += '<div class="r-row r-total"><span>ยอดสุทธิ</span><span>฿' + grand.toFixed(2) + '</span></div>';
+  r += '<div class="r-row"><span>รับเงิน</span><span>฿' + cash.toFixed(2) + '</span></div>';
+  r += '<div class="r-row r-total" style="color:#2e7d32"><span>เงินทอน</span><span>฿' + change.toFixed(2) + '</span></div>';
+  r += '<hr>';
+  r += '<p class="r-center" style="margin-top:8px">🙏 ขอบคุณที่ใช้บริการ</p>';
+  r += '</div>';
+
+  document.getElementById('receiptContent').innerHTML = r;
+  document.getElementById('overlay').classList.add('open');
+
+  renderProducts();
+}
+
+function closeReceipt() { document.getElementById('overlay').classList.remove('open'); }
+
+// ═══════════════════════════════════════
+// SNACKBAR
+// ═══════════════════════════════════════
+function showSnack(msg) {
+  const el = document.getElementById('snackbar');
+  document.getElementById('snackMsg').textContent = msg;
+  el.classList.add('show');
+  clearTimeout(snackTimer);
+  snackTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════════
+// SCROLL HELPER
+// ═══════════════════════════════════════
+function scrollToCart() {
+  document.getElementById('cartPanel').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+renderProducts();
+renderCart();
+</script>
+</body>
+</html>
